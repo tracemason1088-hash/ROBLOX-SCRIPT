@@ -1,41 +1,53 @@
--- Simple Mobile Flying Script
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+-- 1. Fetch the Visual Elements from the Library
+local OrionLib = loadstring(game:HttpGet(('https://githubusercontent.com')))()
 
-local Camera = workspace.CurrentCamera
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local RootPart = Character:WaitForChild("HumanoidRootPart")
-local Humanoid = Character:WaitForChild("Humanoid")
+-- 2. Create the Visual Window Window (The Main Container)
+local Window = OrionLib:MakeWindow({
+    Name = "My Custom Visual Menu", 
+    HidePremium = true, 
+    SaveConfig = false
+})
 
--- Flight Settings
-local flying = true
-local flySpeed = 50 -- Increase this number to fly faster
+-- 3. Create a Blank Tab on the Side Bar
+local BlankTab = Window:MakeTab({
+    Name = "Blank Tab Layout",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- Create a BodyVelocity object to control movement forces
-local bVel = Instance.new("BodyVelocity")
-bVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-bVel.Velocity = Vector3.new(0, 0, 0)
-bVel.Parent = RootPart
+-- 4. A Visual Text Header
+BlankTab:AddLabel("This is a blank visual design element.")
 
--- Turn off character gravity so you don't fall down
-Humanoid.PlatformStand = true
+-- 5. An Empty Clickable Button
+BlankTab:AddButton({
+    Name = "Empty Design Button",
+    Callback = function()
+        -- Left completely empty (No script executes)
+    end    
+})
 
--- Continuous loop to push your avatar where the camera looks
-local connection
-connection = RunService.RenderStepped:Connect(function()
-    if not flying or not RootPart.Parent then
-        bVel:Destroy()
-        Humanoid.PlatformStand = false
-        connection:Disconnect()
-        return
-    end
-    
-    -- This constantly moves your character exactly forward based on your look angle
-    bVel.Velocity = Camera.CFrame.LookVector * flySpeed
-end)
+-- 6. An Empty On/Off Toggle Switch
+BlankTab:AddToggle({
+    Name = "Empty Toggle Switch",
+    Default = false,
+    Callback = function(Value)
+        -- Left completely empty (No script executes)
+    end    
+})
 
--- Deactivates flight automatically if your avatar resets/dies
-Humanoid.Died:Connect(function()
-    flying = false
-end)
+-- 7. An Empty Adjustable Slider
+BlankTab:AddSlider({
+    Name = "Empty Adjustment Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "Units",
+    Callback = function(Value)
+        -- Left completely empty (No script executes)
+    end    
+})
+
+-- 8. Open the Interface on Screen
+OrionLib:Init()
