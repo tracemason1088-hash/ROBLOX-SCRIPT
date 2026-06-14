@@ -1,4 +1,3 @@
--- Simple Mobile Flying Script
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -8,34 +7,39 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 local Humanoid = Character:WaitForChild("Humanoid")
 
--- Flight Settings
-local flying = true
-local flySpeed = 50 -- Increase this number to fly faster
+-- Flight Configuration
+local flySpeed = 2.5 -- The speed multiplier for smooth CFrame sliding
 
--- Create a BodyVelocity object to control movement forces
-local bVel = Instance.new("BodyVelocity")
-bVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-bVel.Velocity = Vector3.new(0, 0, 0)
-bVel.Parent = RootPart
+-- Clear out colliding limbs so Roblox doesn't drag you along the ground
+for _, limb in pairs(Character:GetChildren()) do
+    if limb:IsA("BasePart") and limb.Name ~= "HumanoidRootPart" then
+        limb.CanCollide = false
+    end
+end
 
--- Turn off character gravity so you don't fall down
+-- Detach avatar states from default Roblox gravity and grounding controls
 Humanoid.PlatformStand = true
 
--- Continuous loop to push your avatar where the camera looks
-local connection
-connection = RunService.RenderStepped:Connect(function()
-    if not flying or not RootPart.Parent then
-        bVel:Destroy()
+-- High-precision frame calculation loop
+local flyConnection
+flyConnection = RunService.RenderStepped:Connect(function()
+    -- Stop running if the character dies or respawns
+    if not Character or not RootPart.Parent or Humanoid.Health <= 0 then
         Humanoid.PlatformStand = false
-        connection:Disconnect()
+        flyConnection:Disconnect()
         return
     end
     
-    -- This constantly moves your character exactly forward based on your look angle
-    bVel.Velocity = Camera.CFrame.LookVector * flySpeed
+    -- Teleport your character slightly in the exact direction the camera faces
+    -- Looking up will now pull you directly into the sky instantly
+    local moveDirection = Camera.CFrame.LookVector
+    RootPart.CFrame = RootPart.CFrame + (moveDirection * flySpeed)
+    
+    -- Keeps your velocity at 0 so standard physics don't drop you back down
+    RootPart.Velocity = Vector3.new(0, 0, 0)
 end)
 
--- Deactivates flight automatically if your avatar resets/dies
+-- Clear memory state if the player resets manually
 Humanoid.Died:Connect(function()
-    flying = false
-end)
+    if flyConnection then flyConnection:Disconnect() end
+end
