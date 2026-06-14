@@ -1,42 +1,43 @@
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-if playerGui:FindFirstChild("MyCustomMenu") then
-    playerGui.MyCustomMenu:Destroy()
+-- Safety sweep: Destroy any old menus so they don't overlay
+if playerGui:FindFirstChild("MobileMenuSystem") then
+    playerGui.MobileMenuSystem:Destroy()
 end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MyCustomMenu"
+screenGui.Name = "MobileMenuSystem"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 -- ========================================================
--- MAIN PANEL CONFIGURATION
+-- MAIN PANEL
 -- ========================================================
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 320, 0, 220)
-mainFrame.Position = UDim2.new(0.5, -160, 0.4, -110)
+mainFrame.Size = UDim2.new(0, 320, 0, 240)
+mainFrame.Position = UDim2.new(0.5, -160, 0.4, -120)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true -- Drag anywhere on your screen
+mainFrame.Draggable = true -- Allows moving the menu around your phone screen
 mainFrame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0, 12)
 frameCorner.Parent = mainFrame
 
--- Title Header Bar
+-- Title Banner Header
 local titleBar = Instance.new("TextLabel")
 titleBar.Name = "Header"
 titleBar.Size = UDim2.new(1, 0, 0, 40)
 titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-titleBar.Text = "  MY MOBILE MOD MENU"
+titleBar.Text = "  MOBILE EXPLOIT PANEL"
 titleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleBar.TextXAlignment = Enum.TextXAlignment.Left
 titleBar.Font = Enum.Font.GothamBold
-titleBar.TextSize = 14
+titleBar.TextSize = 13
 titleBar.Parent = mainFrame
 
 local barCorner = Instance.new("UICorner")
@@ -46,11 +47,11 @@ barCorner.Parent = titleBar
 local accentLine = Instance.new("Frame")
 accentLine.Size = UDim2.new(1, 0, 0, 2)
 accentLine.Position = UDim2.new(0, 0, 0, 38)
-accentLine.BackgroundColor3 = Color3.fromRGB(140, 80, 255)
+accentLine.BackgroundColor3 = Color3.fromRGB(140, 80, 255) -- Purple Theme Accent
 accentLine.BorderSizePixel = 0
 accentLine.Parent = mainFrame
 
--- Close Menu Button (✕)
+-- Close Button (✕)
 local closeButton = Instance.new("TextButton")
 closeButton.Name = "Close"
 closeButton.Size = UDim2.new(0, 30, 0, 30)
@@ -67,10 +68,10 @@ closeButton.MouseButton1Click:Connect(function()
 end)
 
 -- ========================================================
--- MINIMIZE SYSTEM (Toggle Visibility)
+-- INTERACTIVE MINIMIZE SYSTEM
 -- ========================================================
 local minButton = Instance.new("TextButton")
-minButton.Name = "MinimizeButton"
+minButton.Name = "MinButton"
 minButton.Size = UDim2.new(0, 45, 0, 25)
 minButton.Position = UDim2.new(1, -85, 0, 7)
 minButton.BackgroundColor3 = Color3.fromRGB(45, 40, 60)
@@ -84,18 +85,18 @@ local minCorner = Instance.new("UICorner")
 minCorner.CornerRadius = UDim.new(0, 6)
 minCorner.Parent = minButton
 
--- The Open/Show Button that displays when minimized
+-- Small floating anchor icon when minimized
 local openButton = Instance.new("TextButton")
-openButton.Name = "OpenFloatingButton"
-openButton.Size = UDim2.new(0, 60, 0, 35)
-openButton.Position = UDim2.new(0, 10, 0.3, 0) -- Floating on left edge of phone screen
+openButton.Name = "OpenAnchor"
+openButton.Size = UDim2.new(0, 55, 0, 35)
+openButton.Position = UDim2.new(0, 15, 0.4, 0)
 openButton.BackgroundColor3 = Color3.fromRGB(140, 80, 255)
 openButton.Text = "OPEN"
 openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 openButton.Font = Enum.Font.GothamBold
-openButton.TextSize = 12
+openButton.TextSize = 11
 openButton.Visible = false
-openButton.Draggable = true -- Drag the floating open button anywhere out of your way
+openButton.Draggable = true -- Drag the floating OPEN button anywhere out of your way
 openButton.Parent = screenGui
 
 local openCorner = Instance.new("UICorner")
@@ -113,14 +114,14 @@ openButton.MouseButton1Click:Connect(function()
 end)
 
 -- ========================================================
--- MOBILE FLIGHT CONTROL SYSTEM
+-- ADVANCED MOBILE FLIGHT MODULE
 -- ========================================================
 local flyButton = Instance.new("TextButton")
 flyButton.Name = "FlyButton"
 flyButton.Size = UDim2.new(0, 280, 0, 45)
 flyButton.Position = UDim2.new(0, 20, 0, 70)
 flyButton.BackgroundColor3 = Color3.fromRGB(45, 40, 60)
-flyButton.Text = "Toggle Flight Mode"
+flyButton.Text = "Flight Mode: OFF"
 flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 flyButton.Font = Enum.Font.GothamBold
 flyButton.TextSize = 14
@@ -130,8 +131,9 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 8)
 btnCorner.Parent = flyButton
 
+-- Flight Variable States
 local flying = false
-local flySpeed = 50
+local flySpeed = 60
 local bVel = nil
 local bGyro = nil
 local flyConnection = nil
@@ -144,15 +146,16 @@ flyButton.MouseButton1Click:Connect(function()
     local Humanoid = Character:WaitForChild("Humanoid")
     
     if flying then
+        flyButton.Text = "Flight Mode: ON"
         flyButton.BackgroundColor3 = Color3.fromRGB(140, 80, 255)
         
-        -- Forces movement velocity direction
+        -- Physical linear velocity force configuration
         bVel = Instance.new("BodyVelocity")
         bVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
         bVel.Velocity = Vector3.new(0, 0, 0)
         bVel.Parent = RootPart
         
-        -- Prevents character tilting/falling sideways on mobile
+        -- Physical rotational angular lock (stops character glitching sideways)
         bGyro = Instance.new("BodyGyro")
         bGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
         bGyro.CFrame = RootPart.CFrame
@@ -160,14 +163,16 @@ flyButton.MouseButton1Click:Connect(function()
         
         Humanoid.PlatformStand = true
         
+        -- High-frequency execution loop (updates vector every single frame rendering)
         flyConnection = game:GetService("RunService").RenderStepped:Connect(function()
             if not flying or not RootPart.Parent then return end
-            -- Smoothly matches player orientation to camera facing view angle
+            -- Lock your avatar balance orientation straight to your camera orientation
             bGyro.CFrame = Camera.CFrame
-            -- Pushes character relative to look direction (look up to fly off floor)
+            -- Move precisely in the 3D direction the camera vector looks
             bVel.Velocity = Camera.CFrame.LookVector * flySpeed
         end)
     else
+        flyButton.Text = "Flight Mode: OFF"
         flyButton.BackgroundColor3 = Color3.fromRGB(45, 40, 60)
         Humanoid.PlatformStand = false
         if bVel then bVel:Destroy() end
