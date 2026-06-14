@@ -1,108 +1,151 @@
+-- esp.lua - MM2 Style ESP (Like your screenshot)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-local ESP_Color = Color3.fromRGB(0, 255, 0) -- Neon Green from your image
+local player = Players.LocalPlayer
+local ESP_Enabled = false
+local Connections = {}
+local ESP_Objects = {}
 
--- Table to keep track of active ESP elements
-local ActiveESP = {}
+local Colors = {
+    Murderer = Color3.fromRGB(255, 50, 50),
+    Sheriff = Color3.fromRGB(50, 150, 255),
+    Innocent = Color3.fromRGB(0, 255, 100),
+    Default = Color3.fromRGB(255, 255, 255)
+}
 
--- Function to clean up ESP elements for a single player
-local function removeESP(player)
-    if ActiveESP[player] then
-        for _, obj in pairs(ActiveESP[player]) do
-            if obj then obj:Destroy() end
+local function CreateESP(plr)
+    if plr == player then return end
+    
+    local data = {}
+    
+    -- Tracer Line
+    data.Tracer = Drawing.new("Line")
+    data.Tracer.Thickness = 2.5
+    data.Tracer.Transparency = 0.75
+    data.Tracer.Visible = false
+    
+    -- Main Text Label (Name + Role + Distance)
+    data.Text = Drawing.new("Text")
+    data.Text.Size = 17
+    data.Text.Center = true
+    data.Text.Outline = true
+    data.Text.OutlineColor = Color3.new(0,0,0)
+    data.Text.Font = 2 -- Gotham
+    data.Text.Visible = false
+    
+    -- Small character preview glow (Highlight)
+    data.Highlight = Instance.new("Highlight")
+    data.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    data.Highlight.OutlineTransparency = 0.3
+    data.Highlight.FillTransparency = 0.8
+    data.Highlight.Parent = plr.Character or workspace
+    
+    ESP_Objects[plr] = data
+end
+
+local function UpdateESP()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == player or not plr.Character then continue end
+        
+        local root = plr.Character:FindFirstChild("HumanoidRootPart")
+        local head = plr.Character:FindFirstChild("Head")
+        local humanoid = plr.Character:FindFirstChild("Humanoid")
+        
+        if not root or not head then continue end
+        
+        local data = ESP_Objects[plr]
+        if not data then
+            CreateESP(plr)
+            data = ESP_Objects[plr]
         end
-        ActiveESP[player] = nil
+        
+        -- Role Detection
+        local role = "Innocent"
+        local roleColor = Colors.Innocent
+        
+        local roleObj = plr.Character:FindFirstChild("Role") or plr:FindFirstChild("Role")
+        if roleObj then
+            role = roleObj.Value or "Innocent"
+            if role:lower():find("murderer") then
+                roleColor = Colors.Murderer
+            elseif role:lower():find("sheriff") then
+                roleColor = Colors.Sheriff
+            end
+        end
+        
+        -- Update Highlight Glow
+        data.Highlight.FillColor = roleColor
+        data.Highlight.OutlineColor = roleColor
+        data.Highlight.Enabled = ESP_Enabled
+        
+        -- World to Screen
+        local rootPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+        local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 2.5, 0))
+        
+        if not onScreen then
+            data.Tracer.Visible = false
+            data.Text.Visible = false
+            continue
+        end
+        
+        -- Tracer (from bottom center like screenshot)
+        local screenBottom = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 50)
+        data.Tracer.From = screenBottom
+        data.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
+        data.Tracer.Color = roleColor
+        data.Tracer.Visible = ESP_Enabled
+        
+        -- Main Text (exactly like screenshot style)
+        local distance = math.floor((player.Character and player.Character:FindFirstChild("HumanoidRootPart") and 
+            (root.Position - player.Character.HumanoidRootPart.Position).Magnitude) or 0)
+        
+        data.Text.Text = string.format("%s [%s] | %d studs", plr.Name, role, distance)
+        data.Text.Position = Vector2.new(rootPos.X, rootPos.Y - 30)
+        data.Text.Color = roleColor
+        data.Text.Visible = ESP_Enabled
     end
 end
 
--- Function to create ESP elements for a player
-local function createESP(player)
-    if player == LocalPlayer then return end
-    
-    removeESP(player) -- Reset if already exists
-    ActiveESP[player] = {}
-    
-    local function setupCharacter(character)
-        local root = character:WaitForChild("HumanoidRootPart", 5)
-        local humanoid = character:WaitForChild("Humanoid", 5)
-        if not root or not humanoid then return end
-        
-        -- 1. CHAMS (The Neon Green Body Glow)
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "ESPHighlight"
-        highlight.FillColor = ESP_Color
-        highlight.FillTransparency = 0.4
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        highlight.OutlineTransparency = 0.2
-        highlight.Adornee = character
-        highlight.Parent = character
-        table.insert(ActiveESP[player], highlight)
-        
-        -- 2. TEXT PANEL (Name and Distance)
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESPText"
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.AlwaysOnTop = true
-        billboard.ExtentsOffset = Vector3.new(0, 3, 0) -- Places text above head
-        billboard.Adornee = root
-        billboard.Parent = root
-        table.insert(ActiveESP[player], billboard)
-        
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(1, 0, 1, 0)
-        textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = ESP_Color
-        textLabel.Font = Enum.Font.GothamBold
-        textLabel.TextSize = 14
-        textLabel.TextStrokeTransparency = 0 -- Adds dark outline for visibility
-        textLabel.Parent = billboard
-        
-        -- 3. TRACERS (Line Connecting Camera to Player)
-        local tracer = Instance.new("LineHandleAdornment")
-        tracer.Name = "ESPTracer"
-        tracer.Length = 0
-        tracer.Thickness = 2
-        tracer.Color3 = ESP_Color
-        tracer.AlwaysOnTop = true
-        tracer.ZIndex = 10
-        tracer.Adornee = Camera
-        tracer.Parent = Camera
-        table.insert(ActiveESP[player], tracer)
-        
-        -- Loop to continuously update Distance and Tracer lines
-        local updateConnection
-        updateConnection = RunService.RenderStepped:Connect(function()
-            if not character.Parent or not root.Parent or humanoid.Health <= 0 then
-                updateConnection:Disconnect()
-                return
-            end
-            
-            -- Calculate real distance in studs
-            local distance = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude) or 0)
-            textLabel.Text = player.Name .. " | " .. distance .. " studs"
-            
-            -- Update Tracer positions (Lines come from the top middle of the screen)
-            local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-            if onScreen then
-                tracer.Visible = true
-                -- Origin position at the top middle of the viewport camera matrix
-                local startRay = Camera:ViewportPointToRay(Camera.ViewportSize.X / 2, 0)
-                tracer.CFrame = CFrame.lookAt(startRay.Origin, root.Position)
-                tracer.Length = (startRay.Origin - root.Position).Magnitude
-            else
-                tracer.Visible = false
-            end
-        end)
+-- Public Toggle
+getgenv().ToggleESP = function(state)
+    ESP_Enabled = state
+    if not state then
+        for _, data in pairs(ESP_Objects) do
+            if data.Tracer then data.Tracer.Visible = false end
+            if data.Text then data.Text.Visible = false end
+            if data.Highlight then data.Highlight.Enabled = false end
+        end
     end
-    
-    if player.Character then setupCharacter(player.Character) end
-    player.CharacterAdded:Connect(setupCharacter)
+    getgenv().Notify("ESP " .. (state and "Enabled" or "Disabled"), Color3.fromRGB(100, 255, 100))
 end
 
--- Initialize for existing players and watch for new ones
-for _, p in pairs(Players:GetPlayers()) do createESP(p) end
-Players.PlayerAdded:Connect(createESP)
-Players.PlayerRemoving:Connect(removeESP)
+-- Cleanup
+Players.PlayerRemoving:Connect(function(plr)
+    local data = ESP_Objects[plr]
+    if data then
+        if data.Tracer then data.Tracer:Remove() end
+        if data.Text then data.Text:Remove() end
+        if data.Highlight then data.Highlight:Destroy() end
+        ESP_Objects[plr] = nil
+    end
+end)
+
+-- Main Loop
+Connections[#Connections+1] = RunService.RenderStepped:Connect(UpdateESP)
+
+-- Auto add new players
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function() task.wait(1); CreateESP(plr) end)
+end)
+
+-- Initial setup
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= player and plr.Character then CreateESP(plr) end
+end
+
+print("✅ MM2 Screenshot-Style ESP Loaded")
+
+-- Test command
+getgenv().AddCommand(":esp", function() getgenv().ToggleESP(not ESP_Enabled) end)
